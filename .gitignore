@@ -1,7 +1,3 @@
-.env
-Dockerfile*
-docker-compose*
 .vscode
 pets # Dont push the local binary
 .DS_Store
-
