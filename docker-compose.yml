@@ -1,124 +1,53 @@
 version: '3'
+
 services:
-  app:
-    container_name: full_app
-    build: .
-    ports: 
-      - 8888:8888 
-    restart: on-failure
-    volumes:
-      - .:/usr/src/app
-    depends_on:
-      - pets-postgres # This service depends on postgres. Start that first.
-      # - pets-mysql # This service depends on mysql. Start that first.
-    environment:
-      - DOMAIN_NAME=mascotas.vet
-    networks:
-      - app-network
-
-    webserver:
-      image: nginx:mainline-alpine
-      container_name: webserver
-      restart: unless-stopped
-      ports:
-        - "80:80"
-      volumes:
-        - web-root:/var/www/html
-        - ./nginx-conf:/etc/nginx/conf.d
-        - certbot-etc:/etc/letsencrypt
-        - certbot-var:/var/lib/letsencrypt
-      depends_on:
-        - full_app
-      networks:
-        - app-network
-  
-    certbot:
-      image: certbot/certbot
-      container_name: certbot
-      volumes:
-        - certbot-etc:/etc/letsencrypt
-        - certbot-var:/var/lib/letsencrypt
-        - web-root:/var/www/html
-      depends_on:
-        - webserver
-      command: certonly --webroot --webroot-path=/var/www/html --email willian3d@gmail.com --agree-tos --no-eff-email --staging -d mascotas.vet -d mascotas.vet
-    
-  pets-postgres:
-    image: postgres:latest
-    container_name: full_db_postgres
-    environment:
-      - POSTGRES_USER=${DB_USER}
-      - POSTGRES_PASSWORD=${DB_PASSWORD}
-      - POSTGRES_DB=${DB_NAME}
-      - DATABASE_HOST=${DB_HOST}
-    ports:
-      - '5432:5432'
-    volumes:
-      - database_postgres:/var/lib/postgresql/data
-    networks:
-      - app-network
-    
-  pgadmin:
-    image: dpage/pgadmin4
-    container_name: pgadmin_container
-    environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
-    depends_on:
-      - pets-postgres
-    ports:
-      - "5050:80"
-    networks:
-      - app-network
+  nodejs:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: nodejs
+    container_name: nodejs
     restart: unless-stopped
+    networks:
+      - app-network
 
-  
-  # pets-mysql:
-  #   image: mysql:5.7
-  #   container_name: full_db_mysql
-  #   ports: 
-  #     - 3306:3306
-  #   environment: 
-  #     - MYSQL_ROOT_HOST=${DB_HOST} 
-  #     - MYSQL_USER=${DB_USER}
-  #     - MYSQL_PASSWORD=${DB_PASSWORD}
-  #     - MYSQL_DATABASE=${DB_NAME}
-  #     - MYSQL_ROOT_PASSWORD=${DB_PASSWORD}
-  #   volumes:
-  #     - database_mysql:/var/lib/mysql
-  #   networks:
-  #     - app-network
-  
-  # phpmyadmin:
-  #   image: phpmyadmin/phpmyadmin
-  #   container_name: phpmyadmin_container
-  #   depends_on:
-  #     - pets-mysql
-  #   environment:
-  #     - PMA_HOST=mysql # Note the "mysql". Must be the name of the what you used as the mysql service.
-  #     - PMA_USER=${DB_USER}
-  #     - PMA_PORT=${DB_PORT}
-  #     - PMA_PASSWORD=${DB_PASSWORD}
-  #   ports:
-  #     - 9090:80
-  #   restart: always
-  #   networks:
-  #     - app-network
+  webserver:
+    image: nginx:mainline-alpine
+    container_name: webserver
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - web-root:/var/www/html
+      - ./nginx-conf:/etc/nginx/conf.d
+      - certbot-etc:/etc/letsencrypt
+      - certbot-var:/var/lib/letsencrypt
+    depends_on:
+      - nodejs
+    networks:
+      - app-network
+
+  certbot:
+    image: certbot/certbot
+    container_name: certbot
+    volumes:
+      - certbot-etc:/etc/letsencrypt
+      - certbot-var:/var/lib/letsencrypt
+      - web-root:/var/www/html
+    depends_on:
+      - webserver
+    command: certonly --webroot --webroot-path=/var/www/html --email usrapp@mascotas.vet --agree-tos --no-eff-email --staging -d mascotas.vet  -d www.mascotas.vet
 
 volumes:
-  api:
-  database_postgres:
-  # database_mysql:
   certbot-etc:
   certbot-var:
   web-root:
     driver: local
     driver_opts:
       type: none
-      device: /home/usrapp/api-go/
+      device: /home/usrapp/node_project/views/
       o: bind
 
-# Networks to be created to facilitate communication between containers
 networks:
   app-network:
     driver: bridge
