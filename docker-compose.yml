@@ -14,22 +14,49 @@ services:
     environment:
       - DOMAIN_NAME=mascotas.vet
     networks:
-      - pets
+      - app-network
 
+    webserver:
+      image: nginx:mainline-alpine
+      container_name: webserver
+      restart: unless-stopped
+      ports:
+        - "80:80"
+      volumes:
+        - web-root:/var/www/html
+        - ./nginx-conf:/etc/nginx/conf.d
+        - certbot-etc:/etc/letsencrypt
+        - certbot-var:/var/lib/letsencrypt
+      depends_on:
+        - full_app
+      networks:
+        - app-network
+  
+    certbot:
+      image: certbot/certbot
+      container_name: certbot
+      volumes:
+        - certbot-etc:/etc/letsencrypt
+        - certbot-var:/var/lib/letsencrypt
+        - web-root:/var/www/html
+      depends_on:
+        - webserver
+      command: certonly --webroot --webroot-path=/var/www/html --email willian3d@gmail.com --agree-tos --no-eff-email --staging -d mascotas.vet -d mascotas.vet
+    
   pets-postgres:
     image: postgres:latest
     container_name: full_db_postgres
     environment:
-      - POSTGRES_USER=${DB_USER}  
+      - POSTGRES_USER=${DB_USER}
       - POSTGRES_PASSWORD=${DB_PASSWORD}
       - POSTGRES_DB=${DB_NAME}
-      - DATABASE_HOST=${DB_HOST} 
+      - DATABASE_HOST=${DB_HOST}
     ports:
       - '5432:5432'
     volumes:
       - database_postgres:/var/lib/postgresql/data
     networks:
-      - pets
+      - app-network
     
   pgadmin:
     image: dpage/pgadmin4
@@ -42,7 +69,7 @@ services:
     ports:
       - "5050:80"
     networks:
-      - pets
+      - app-network
     restart: unless-stopped
 
   
@@ -60,7 +87,7 @@ services:
   #   volumes:
   #     - database_mysql:/var/lib/mysql
   #   networks:
-  #     - pets
+  #     - app-network
   
   # phpmyadmin:
   #   image: phpmyadmin/phpmyadmin
@@ -76,15 +103,22 @@ services:
   #     - 9090:80
   #   restart: always
   #   networks:
-  #     - pets
-
+  #     - app-network
 
 volumes:
   api:
   database_postgres:
   # database_mysql:
+  certbot-etc:
+  certbot-var:
+  web-root:
+    driver: local
+    driver_opts:
+      type: none
+      device: /home/usrapp/api-go/
+      o: bind
 
 # Networks to be created to facilitate communication between containers
 networks:
-  pets:
+  app-network:
     driver: bridge
